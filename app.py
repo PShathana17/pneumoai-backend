@@ -1,7 +1,7 @@
 import streamlit as st
 import numpy as np
 from PIL import Image
-from tensorflow.keras.models import load_model
+
 
 # --------------------------------------------------
 # Page Configuration
@@ -12,6 +12,7 @@ st.set_page_config(
     layout="centered"
 )
 
+
 # --------------------------------------------------
 # Custom CSS
 # --------------------------------------------------
@@ -20,7 +21,12 @@ st.markdown("""
 
     /* Main page */
     .stApp {
-        background: linear-gradient(135deg, #f0f9ff 0%, #ffffff 50%, #eff6ff 100%);
+        background: linear-gradient(
+            135deg,
+            #f0f9ff 0%,
+            #ffffff 50%,
+            #eff6ff 100%
+        );
     }
 
     /* Main container */
@@ -114,15 +120,22 @@ st.markdown("""
 
 
 # --------------------------------------------------
-# Load Model
+# Model Configuration
 # --------------------------------------------------
 MODEL_PATH = "pneumonia_model.keras"
 
+
+# --------------------------------------------------
+# Load Model Only When Needed
+# --------------------------------------------------
 @st.cache_resource
 def load_pneumonia_model():
-    return load_model(MODEL_PATH)
 
-model = load_pneumonia_model()
+    from tensorflow.keras.models import load_model
+
+    model = load_model(MODEL_PATH)
+
+    return model
 
 
 # --------------------------------------------------
@@ -134,9 +147,13 @@ st.markdown(
 )
 
 st.markdown(
-    '<div class="subtitle">AI-powered chest X-ray analysis using a CNN deep learning model</div>',
+    '<div class="subtitle">'
+    'AI-powered chest X-ray analysis using a CNN deep learning model'
+    '</div>',
     unsafe_allow_html=True
 )
+
+
 # --------------------------------------------------
 # Upload Section
 # --------------------------------------------------
@@ -153,8 +170,10 @@ uploaded_file = st.file_uploader(
 # --------------------------------------------------
 if uploaded_file is not None:
 
+    # Open uploaded image
     image = Image.open(uploaded_file).convert("RGB")
 
+    # Display uploaded image
     st.image(
         image,
         caption="Uploaded Chest X-ray",
@@ -163,68 +182,115 @@ if uploaded_file is not None:
 
     st.write("")
 
-    if st.button("🔍 Predict", use_container_width=True):
+    # --------------------------------------------------
+    # Predict Button
+    # --------------------------------------------------
+    if st.button(
+        "🔍 Predict",
+        use_container_width=True
+    ):
 
-        # Resize
-        image_resized = image.resize((224, 224))
+        try:
 
-        # Convert to NumPy
-        image_array = np.array(image_resized).astype("float32")
+            # --------------------------------------------------
+            # Load model only when Predict is clicked
+            # --------------------------------------------------
+            with st.spinner(
+                "Loading AI model and analyzing X-ray..."
+            ):
 
-        # Normalize
-        image_array = image_array / 255.0
+                model = load_pneumonia_model()
 
-        # Add batch dimension
-        image_array = np.expand_dims(image_array, axis=0)
+                # --------------------------------------------------
+                # Resize Image
+                # --------------------------------------------------
+                image_resized = image.resize(
+                    (224, 224)
+                )
 
-        # Model prediction
-        prediction = model.predict(
-            image_array,
-            verbose=0
-        )
+                # --------------------------------------------------
+                # Convert Image to NumPy
+                # --------------------------------------------------
+                image_array = np.array(
+                    image_resized
+                ).astype("float32")
 
-        probability = float(prediction[0][0])
+                # --------------------------------------------------
+                # Normalize Pixel Values
+                # --------------------------------------------------
+                image_array = image_array / 255.0
 
+                # --------------------------------------------------
+                # Add Batch Dimension
+                # --------------------------------------------------
+                image_array = np.expand_dims(
+                    image_array,
+                    axis=0
+                )
 
-        # --------------------------------------------------
-        # Result
-        # --------------------------------------------------
+                # --------------------------------------------------
+                # Model Prediction
+                # --------------------------------------------------
+                prediction = model.predict(
+                    image_array,
+                    verbose=0
+                )
 
-        if probability >= 0.5:
+                probability = float(
+                    prediction[0][0]
+                )
+
+            # --------------------------------------------------
+            # Prediction Result
+            # --------------------------------------------------
+
+            if probability >= 0.5:
+
+                st.markdown(
+                    """
+                    <div class="pneumonia-result">
+                        ⚠️ Pneumonia Detected
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+
+                confidence = probability
+
+            else:
+
+                st.markdown(
+                    """
+                    <div class="normal-result">
+                        ✅ Normal
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+
+                confidence = 1 - probability
+
+            # --------------------------------------------------
+            # Confidence
+            # --------------------------------------------------
 
             st.markdown(
-                """
-                <div class="pneumonia-result">
-                    ⚠️ Pneumonia Detected
+                f"""
+                <div class="probability">
+                    Prediction Confidence:
+                    <strong>{confidence:.2%}</strong>
                 </div>
                 """,
                 unsafe_allow_html=True
             )
 
-            confidence = probability
+        except Exception as e:
 
-        else:
-
-            st.markdown(
-                """
-                <div class="normal-result">
-                    ✅ Normal
-                </div>
-                """,
-                unsafe_allow_html=True
+            st.error(
+                "❌ An error occurred while analyzing the X-ray."
             )
 
-            confidence = 1 - probability
-
-
-        st.markdown(
-            f"""
-            <div class="probability">
-                Prediction Confidence: <strong>{confidence:.2%}</strong>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
+            st.exception(e)
 
 
 # --------------------------------------------------
