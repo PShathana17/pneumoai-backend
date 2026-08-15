@@ -1,5 +1,4 @@
-Flask
-flask-cors
-tensorflow
+streamlit
+tensorflow==2.20.0
 numpy
 Pillow
