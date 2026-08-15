@@ -133,7 +133,7 @@ def load_pneumonia_model():
 
     from tensorflow.keras.models import load_model
 
-    model = load_model(MODEL_PATH)
+    model = load_model(MODEL_PATH, compile=False)
 
     return model
 
