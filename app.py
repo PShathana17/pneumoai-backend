@@ -1,4 +1,5 @@
 import streamlit as st
+import tensorflow as tf
 import numpy as np
 from PIL import Image
 
@@ -122,20 +123,25 @@ st.markdown("""
 # --------------------------------------------------
 # Model Configuration
 # --------------------------------------------------
-MODEL_PATH = "pneumonia_model.keras"
+MODEL_PATH = "pneumonia_model.tflite"
 
 
 # --------------------------------------------------
-# Load Model Only When Needed
+# Load TFLite Model Only When Needed
 # --------------------------------------------------
 @st.cache_resource
 def load_pneumonia_model():
 
-    from tensorflow.keras.models import load_model
+    interpreter = tf.lite.Interpreter(
+        model_path=MODEL_PATH
+    )
 
-    model = load_model(MODEL_PATH, compile=False)
+    interpreter.allocate_tensors()
 
-    return model
+    input_details = interpreter.get_input_details()
+    output_details = interpreter.get_output_details()
+
+    return interpreter, input_details, output_details
 
 
 # --------------------------------------------------
@@ -193,13 +199,15 @@ if uploaded_file is not None:
         try:
 
             # --------------------------------------------------
-            # Load model only when Predict is clicked
+            # Load TFLite model
             # --------------------------------------------------
             with st.spinner(
                 "Loading AI model and analyzing X-ray..."
             ):
 
-                model = load_pneumonia_model()
+                interpreter, input_details, output_details = (
+                    load_pneumonia_model()
+                )
 
                 # --------------------------------------------------
                 # Resize Image
@@ -229,11 +237,17 @@ if uploaded_file is not None:
                 )
 
                 # --------------------------------------------------
-                # Model Prediction
+                # TFLite Prediction
                 # --------------------------------------------------
-                prediction = model.predict(
-                    image_array,
-                    verbose=0
+                interpreter.set_tensor(
+                    input_details[0]["index"],
+                    image_array
+                )
+
+                interpreter.invoke()
+
+                prediction = interpreter.get_tensor(
+                    output_details[0]["index"]
                 )
 
                 probability = float(
