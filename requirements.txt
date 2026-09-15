@@ -1,4 +1,6 @@
-Python 3.11
-TensorFlow 2.20
-Keras
-Streamlit
+streamlit==1.61.1
+tensorflow==2.20.0
+numpy
+pillow
+opencv-python-headless
+requests
